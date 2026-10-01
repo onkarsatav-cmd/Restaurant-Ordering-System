@@ -8,8 +8,6 @@ const SECRET = process.env.JWT_SECRET || 'change-this-secret';
 app.use(express.json());
 app.use(express.static('public'));
 
-// ---------- Middleware ----------
-// Request madhla JWT token tapasto, user kon ahe te req.user madhe thevto
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   try { req.user = jwt.verify(token, SECRET); next(); }
@@ -25,14 +23,8 @@ app.post('/api/register', (req, res) => {
   const { name, email, password, admin } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'All fields required' });
   const hash = bcrypt.hashSync(password, 10);
-  // Demo sathi: pahila registered user admin hoto
-  const first = db.prepare('SELECT COUNT(*) c FROM users').get().c === 0;
-  try {
-    db.prepare('INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)')
-      .run(name, email, hash, first ? 'admin' : 'customer');
-    res.json({ message: 'Registered' });
-  } catch { res.status(400).json({ error: 'Email already used' }); }
-});
+  
+
 
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
@@ -66,7 +58,7 @@ app.post('/api/orders', auth, (req, res) => {
     const rows = items.map(i => {
       const m = getItem.get(i.id);
       if (!m) throw new Error('Invalid item');
-      total += m.price * i.quantity;            // price server var calculate hote (safe)
+      total += m.price * i.quantity;           
       return { id: m.id, q: i.quantity, price: m.price };
     });
     const o = db.prepare('INSERT INTO orders (user_id,total) VALUES (?,?)').run(req.user.id, total);
@@ -77,7 +69,6 @@ app.post('/api/orders', auth, (req, res) => {
   try { res.json(place()); } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// Customer: swatahche orders. Admin: sagale orders.
 app.get('/api/orders', auth, (req, res) => {
   const sql = `SELECT o.id,o.total,o.status,o.created_at,u.name customer,
     GROUP_CONCAT(m.name||' x'||oi.quantity, ', ') items
